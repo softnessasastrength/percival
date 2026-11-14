@@ -18,10 +18,6 @@ if ! curl --silent --fail --max-time 3 http://127.0.0.1:11434/api/tags >/dev/nul
   echo "Ollama isn't responding on 127.0.0.1:11434. Start the Ollama app or 'ollama serve'." >&2
   exit 1
 fi
-if ! ollama list | grep -Fq 'gpt-oss:20b'; then
-  echo "Model gpt-oss:20b is missing. Run: ollama pull gpt-oss:20b" >&2
-  exit 1
-fi
 mkdir -p .local/bin
 cat > .local/bin/percival <<'SH'
 #!/usr/bin/env bash
@@ -30,4 +26,4 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 exec "$ROOT/.venv/bin/python" -m percival "$@"
 SH
 chmod +x .local/bin/percival
-printf '\\nInstalled locally. From this repo run:\\n  ./.local/bin/percival chat\\nOr add %s/.local/bin to PATH to use: percival chat\\n' "$PWD"
+printf '\nInstalled locally. From this repo run:\n  ./.local/bin/percival chat\nOr add %s/.local/bin to PATH to use: percival chat\n' "$PWD"

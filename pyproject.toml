@@ -7,12 +7,16 @@ name = "percival-core"
 version = "0.1.0"
 description = "Local-first resource control and inference routing for Percival"
 requires-python = ">=3.11"
+dependencies = ["PyYAML>=6,<7"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8,<10"]
 
 [tool.setuptools.packages.find]
 include = ["percival*"]
+
+[tool.setuptools.package-data]
+percival = ["models.yaml", "agents/*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
