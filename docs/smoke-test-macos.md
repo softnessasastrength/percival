@@ -1,41 +1,56 @@
 # Mac mini terminal smoke test
 
-This test runs local Ollama inference only. It does not require OpenClaw, API keys, or cloud services. It does require network access for the initial Git clone and Python dependency installation if needed.
-
-## Checkout before merge
-This smoke-test branch is based on `feature/m0-foundation`. Until both PRs are reviewed and merged, clone the **smoke-test branch**, not `main`:
+Use Python 3.11+ and a current Ollama release with support for explicit
+`:local` model requests. The procedures below were developed with Ollama
+0.40.15. Run these commands in a separate checkout so your current branch
+and local files stay in place.
 
 ```bash
-git clone --branch feature/m1-terminal-smoke https://github.com/softnessasastrength/percival.git
-cd percival
+git clone --branch feature/model-agents https://github.com/softnessasastrength/percival.git percival-model-agents
+cd percival-model-agents
+```
+
+Start Ollama on its default loopback address and install the primary model.
+Install the second model to exercise fallback.
+
+```bash
+ollama pull qwen3:4b
+ollama pull llama3.2:3b
 bash scripts/bootstrap-macos.sh
+./.local/bin/percival models
 ./.local/bin/percival chat
 ```
 
-The bootstrap script intentionally does not install Ollama or download a model automatically. If missing, install Ollama, start it, and run `ollama pull gpt-oss:20b`. Then rerun bootstrap.
+Pulls and Python dependency installation need network access. With setup
+complete, chat runs offline. To also disable cloud features for the entire
+Ollama server, start it with `OLLAMA_NO_CLOUD=1 ollama serve` after quitting
+any running Ollama app or server.
 
-## Manual equivalent
-```bash
-python3 -m venv .venv
-.venv/bin/python -m pip install -e .
-.venv/bin/python -m percival chat --model gpt-oss:20b
-```
+## Conversation
 
-## Success criteria
-- Startup reports loopback inference and cloud access disabled.
-- The assistant responds to a greeting.
-- Follow-up references prior turn in the same session.
-- `/reset` clears conversational context.
-- `/exit` quits cleanly.
-- Disconnecting Ollama yields an error without switching to cloud inference.
+1. Confirm the banner shows `qwen3:4b`, loopback inference and disabled cloud access.
+2. Enter `Good morning, Percival.` Expect a concise reply. Check for draft deliberations, thinking tags or a blank reply.
+3. Enter `Remember the code word is teacup for this chat. Confirm in a few words.` Then ask `What code word did I give you? Answer in one word.` Expect `teacup`.
+4. Enter `/reset` and repeat the question. Expect Percival to have lost the code word. Enter `/exit` to end the session.
+5. Repeat the greeting with `chat --reasoning on`. The terminal should still show just the final reply.
 
-## Limitations
-- Terminal conversation is in memory only; no saved transcripts.
-- Ollama endpoint is restricted to numeric loopback addresses.
-- No tools, calendar, messaging, autonomous actions, or OpenClaw bridge.
-- The request has a timeout and output-token cap but not a comprehensive resource quota.
-- Local model quality and Mac mini performance are not yet verified.
-- No actual speech input/output: 'talking' means terminal text conversation.
+## Fallback and outage
+
+To test a missing primary without removing an installed model, copy
+`percival/models.yaml` to `percival/models-smoke.yaml`. Replace every occurrence
+of `qwen3:4b` with `qwen3:missing-smoke`. Then run
+`./.local/bin/percival chat --config percival/models-smoke.yaml`. Expect the
+banner to show `llama3.2:3b` and make sure it answers the greeting. Remove the
+temporary config after the test.
+
+With Ollama stopped, run `./.local/bin/percival chat` again. Expect a local
+connection error and a nonzero exit. If Ollama stops mid-session, the turn
+should fail with a local error and the terminal should accept another prompt.
 
 ## Troubleshooting
-Run `ollama list` to check the model, and `curl http://127.0.0.1:11434/api/tags` to verify Ollama is serving locally.
+
+- Run `ollama list` or `./.local/bin/percival models` to see installed tags.
+- Run `curl http://127.0.0.1:11434/api/tags` to verify the local service.
+- If the terminal reports an output limit, try the configured fallback or
+  adjust `output_tokens` and `context_tokens` in a copy of the registry.
+- Use `./.local/bin/percival chat --model llama3.2:3b` to isolate the fallback.

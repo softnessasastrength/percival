@@ -1,0 +1,22 @@
+version: 1
+default_agent: percival
+
+# Inference settings for installed Ollama tags.
+models:
+  qwen3:4b:
+    context_tokens: 4096
+    output_tokens: 2048
+  llama3.2:3b:
+    context_tokens: 4096
+    output_tokens: 512
+
+# Instructions live in Markdown. Model order is the local fallback order.
+agents:
+  percival:
+    instructions: agents/percival.md
+    models: ["qwen3:4b", "llama3.2:3b"]
+    reasoning: "off"
+  coding:
+    instructions: agents/coding.md
+    models: ["qwen3:4b", "llama3.2:3b"]
+    reasoning: "on"
