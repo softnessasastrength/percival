@@ -26,7 +26,8 @@ server. Run `python -m percival chat` for Percival or
 Edit [models.yaml](percival/models.yaml) or pass `chat --config PATH` to
 load a custom registry. It maps agent profiles to an ordered list of installed
 Ollama tags and sets each model's context and output limits. Each profile
-loads a Markdown instructions file relative to the registry. The fallback
+loads a Markdown instructions file relative to the registry. Every profile
+receives the shared `AGENTS.md` contract followed by its role instructions. The fallback
 receives the same instructions and successful conversation history as the
 primary. A single `--model TAG` overrides the profile's entire model list.
 

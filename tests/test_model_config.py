@@ -10,7 +10,7 @@ def test_default_registry():
     profile = registry.agents[registry.default_agent]
     assert profile.models == ("qwen3:4b", "llama3.2:3b")
     assert profile.reasoning == "off"
-    assert "British personal operations steward" in profile.instructions
+    assert "British personal operations steward" in " ".join(profile.instructions.split())
 
 
 @pytest.mark.parametrize(("before", "after", "error"), [
@@ -31,3 +31,9 @@ def test_invalid_registry(tmp_path: Path, before, after, error):
 def test_reject_cloud_selectors(tag):
     with pytest.raises(ValueError):
         local_tag(tag)
+
+
+def test_every_profile_receives_repository_contract():
+    contract = (Path(__file__).resolve().parents[1] / "AGENTS.md").read_text().strip()
+    for profile in load_registry().agents.values():
+        assert profile.instructions.startswith(contract + "\n\n## Selected profile\n\n")

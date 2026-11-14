@@ -16,7 +16,7 @@ dev = ["pytest>=8,<10"]
 include = ["percival*"]
 
 [tool.setuptools.package-data]
-percival = ["models.yaml", "agents/*.md"]
+percival = ["AGENTS.md", "models.yaml", "agents/*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

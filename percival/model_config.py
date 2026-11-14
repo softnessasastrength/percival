@@ -8,6 +8,7 @@ import re
 import yaml
 
 DEFAULT_CONFIG = Path(__file__).with_name("models.yaml")
+AGENT_CONTRACT = Path(__file__).with_name("AGENTS.md")
 REASONING_MODES = ("off", "on", "default")
 
 
@@ -53,10 +54,13 @@ def _mapping(value: object, label: str, fields: set[str] | None = None) -> dict:
 
 def load_registry(path: Path = DEFAULT_CONFIG) -> Registry:
     try:
+        contract = AGENT_CONTRACT.read_text(encoding="utf-8").strip()
         data = _mapping(yaml.safe_load(path.read_text(encoding="utf-8")), "config",
                         {"version", "default_agent", "models", "agents"})
     except (OSError, yaml.YAMLError) as exc:
-        raise ValueError(f"Cannot load model config {path}: {exc}") from exc
+        raise ValueError(f"Cannot load agent contract or model config {path}: {exc}") from exc
+    if not contract:
+        raise ValueError("Agent contract is empty")
     if type(data.get("version")) is not int or data["version"] != 1:
         raise ValueError("Model config version must be 1")
 
@@ -92,7 +96,7 @@ def load_registry(path: Path = DEFAULT_CONFIG) -> Registry:
             raise ValueError(f"Cannot read instructions for {name}: {exc}") from exc
         if not prompt:
             raise ValueError(f"{name} instructions are empty")
-        agents[name] = AgentProfile(prompt, candidates, reasoning)
+        agents[name] = AgentProfile(f"{contract}\n\n## Selected profile\n\n{prompt}", candidates, reasoning)
 
     default = data.get("default_agent")
     if not isinstance(default, str) or default not in agents:
