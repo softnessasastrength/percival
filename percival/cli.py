@@ -2,6 +2,7 @@
 from __future__ import annotations
 import argparse
 import json
+import os
 import sys
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -16,19 +17,19 @@ SYSTEM = ("You are Percival, a composed and discreet British personal steward. "
 def chat(model: str, origin: str, timeout: float = 90) -> int:
     client = LocalOllama(origin)
     history = [{"role": "system", "content": SYSTEM}]
-    print(f"\\nPERCIVAL | LOCAL TERMINAL\\nModel: {model}\\nInference: {client.origin}\\nCloud access: DISABLED\\nType /exit to leave, /reset to clear context.\\n")
+    print(f"\nPERCIVAL | LOCAL TERMINAL\nModel: {model}\nInference: {client.origin}\nCloud access: DISABLED\nType /exit to leave, /reset to clear context.\n")
     while True:
         try:
             message = input("You: ").strip()
         except (EOFError, KeyboardInterrupt):
-            print("\\nGoodbye.")
+            print("\nGoodbye.")
             return 0
         if message.lower() in ("/exit", "/quit"):
             print("Goodbye.")
             return 0
         if message.lower() == "/reset":
             history = history[:1]
-            print("Conversation context cleared.\\n")
+            print("Conversation context cleared.\n")
             continue
         if not message:
             continue
@@ -36,18 +37,21 @@ def chat(model: str, origin: str, timeout: float = 90) -> int:
         # Limit retained context; no transcript is persisted to disk.
         candidate = [candidate[0]] + candidate[1:][-20:]
         request = Request(client.origin + "/api/chat", data=json.dumps({
-            "model": model, "messages": candidate, "stream": False,
+            "model": model, "messages": candidate, "stream": False, "think": False,
             "options": {"num_predict": 512}
         }).encode(), headers={"Content-Type": "application/json"}, method="POST")
         try:
             with urlopen(request, timeout=timeout) as response:
                 payload = json.load(response)
-            answer = payload["message"]["content"]
+            answer = payload["message"].get("content", "").strip()
+            if not answer:
+                print("Percival: Ollama returned no final response. Try another prompt or model.\\n", file=sys.stderr)
+                continue
         except (URLError, HTTPError, TimeoutError, KeyError, ValueError) as exc:
             print(f"Percival: Local inference failed ({exc}). Check 'ollama serve' and 'ollama list'.\\n", file=sys.stderr)
             continue
         history = candidate + [{"role": "assistant", "content": answer}]
-        print(f"Percival: {answer}\\n")
+        print(f"Percival: {answer}\n")
 
 
 def main(argv: list[str] | None = None) -> int:
