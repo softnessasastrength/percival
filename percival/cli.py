@@ -2,7 +2,7 @@
 from __future__ import annotations
 import argparse
 import json
-import os
+import re
 import sys
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -33,7 +33,8 @@ def chat(model: str, origin: str, timeout: float = 90) -> int:
             continue
         if not message:
             continue
-        candidate = history + [{"role": "user", "content": message}]
+        user_content = ("/no_think\n" + message) if model.lower().startswith("qwen3") else message
+        candidate = history + [{"role": "user", "content": user_content}]
         # Limit retained context; no transcript is persisted to disk.
         candidate = [candidate[0]] + candidate[1:][-20:]
         request = Request(client.origin + "/api/chat", data=json.dumps({
@@ -44,6 +45,13 @@ def chat(model: str, origin: str, timeout: float = 90) -> int:
             with urlopen(request, timeout=timeout) as response:
                 payload = json.load(response)
             answer = payload["message"].get("content", "").strip()
+            # Some runtimes put reasoning into content despite think=false.
+            answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL).strip()
+            if "<think>" in answer:
+                answer = ""
+            if not answer and payload.get("done_reason") == "length":
+                print("Percival: Output limit reached before a final answer. Try a smaller non-reasoning model.", file=sys.stderr)
+                continue
             if not answer:
                 print("Percival: Ollama returned no final response. Try another prompt or model.\\n", file=sys.stderr)
                 continue
