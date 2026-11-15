@@ -148,6 +148,79 @@ owner's explicit adoption decision (ADR-006).
 | Local Qwen/Ollama integration | Absent | No references in tree; ADR-002 discusses inference workers only |
 | Graceful degradation | Absent on arrival | No code existed; `ToolUnavailable` path in adopted seed |
 
+## F-001 feasibility slice (2026-11-14, Muse session)
+
+Built on top of the adopted foundation seed, under the same operating
+principle (Ember-sized, tested, stdlib-only). Branch
+`f001-feasibility-slice_muse`; merged to `main` after the full suite
+passed (see verification below).
+
+**What exists now**
+
+- `src/percival_core/bring_to_me.py` — the feasibility core of F-001
+  (the "bring to me" button; spec in `FEATURE_QUEUE_muse.md`):
+  - `FriendRef` / `HomeRef`: in-memory, fixture-friendly references.
+    `assess_visit` refuses any friend whose tier is not the inner
+    tier (`NotInnerTierError`), encoding Branden's design rule in
+    code before any network call.
+  - `AtlasClient`: read-only stdlib client for the Transit Atlas
+    `/api/v1` (`coverage`, and `plan` with `return=1&visit=<seconds>`,
+    which returns the outbound itinerary plus earliest and latest
+    return itineraries within one deadline — the primitive return
+    feasibility is composed from; the `bubble` endpoint answers set
+    membership within a ≤14400 s budget and produces no itineraries,
+    so it is not used here).
+  - `assess_visit(friend, home, when, visit_minutes)` → plan object
+    with per-mode verdicts for `come_to_me` (friend → home, friend's
+    return protected) and `go_to_them` (home → friend, Branden's
+    return protected): journey summaries, time-together margin
+    (latest feasible return departure − arrival − requested visit),
+    and a three-state verdict — `feasible` / `not_feasible` /
+    `unknown`. A mode is `unknown` when either endpoint stop's own
+    feed is not loaded or out of its service period, or the Atlas
+    errors or is unreachable; missing data never collapses into
+    `not_feasible`. Coverage rows ride on the plan object as evidence.
+  - `draft_outreach(plan_object, mode)` → a `{"status": "draft",
+    "requires_owner_approval": True, ...}` message in settled-plan
+    voice ("here's how you'll get here, here's how you'll get home").
+    The module contains **no send path** — a test asserts no
+    send/transmit surface exists. Sending stays an owner-approved act
+    outside this module (ADR-003).
+- `tests/test_bring_to_me.py` — 14 stubbed-transport unit tests plus
+  one live integration test (Springfield Union Station `pvta:5101` ↔
+  Hartford `hartford:6` against a running Atlas; skips cleanly when
+  no server is reachable, or when the loaded data has no in-period
+  weekday for the fixture feeds).
+
+**Verification (2026-11-14, Muse Linux sandbox, Python 3.12.3)**
+
+```bash
+python3 -m unittest discover -s tests   # 39 tests (24 foundation + 15 F-001), OK
+python3 -m compileall -q src tests      # OK
+```
+
+The live test ran (not skipped) against the local Atlas with all six
+feeds loaded: on Tue 2026-11-17, friend at Springfield Union Station,
+home at Hartford — `come_to_me` feasible (out 08:00 → 09:27, latest
+return departure 22:39, margin 40,320 s beyond the requested 2-hour
+visit) and `go_to_them` feasible (out 08:35 → 09:17, latest return
+22:24). Note the Atlas plan scan takes tens of seconds per call on
+the full network; the client's default timeout is 120 s, bounded and
+configurable.
+
+**What remains Codex-class for F-001**
+
+1. **Persistent friend registry** — production friend records (home
+   base / pickup point, contact route, tier) built on the adopted
+   `percival_core` registry and the future mission ledger (scoped
+   task 2 above). `FriendRef` is the in-memory seam it should replace.
+2. **Workflow engine** — turning a feasible plan object into a
+   tracked visit workflow (states, reminders, changes on the day),
+   with the send-time owner-approval gate wired to real messaging.
+3. **UI surface** — the one-tap button on a friend's card in the
+   Metro app surface, rendering the three verdict states honestly
+   (`unknown` must never render as "impossible").
+
 ## Notes for the next engineer
 
 - Repo policy (`AGENTS.md`, ADR-005) allows the active assistant to merge
