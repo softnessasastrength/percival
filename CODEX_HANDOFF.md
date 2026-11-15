@@ -36,6 +36,17 @@ work, built forward from this seed per the scoped tasks below.
 4. This handoff — repository state, scoped tasks, verification
    evidence.
 
+## Luna chunks
+
+[`CODEX_CHUNKS.md`](CODEX_CHUNKS.md) decomposes the scoped work below
+into one-sitting chunks (P-01 onward), each with bounded files, a
+concrete acceptance test, and named dependencies. Consume the earliest
+unblocked chunk in that file's stated order; a chunk is done only when
+its acceptance test and the full suite pass and `DECISIONS.md` records
+it. The chunks do not replace this handoff or widen any approval
+boundary. P-001 key/recovery design is explicitly reserved there as
+owner/Astra-class work, not a chunk.
+
 ## State of the repository on arrival
 
 The repository contained **documentation only** — `README.md`,
