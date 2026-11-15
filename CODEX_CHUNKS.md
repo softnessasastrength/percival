@@ -627,3 +627,170 @@ as protecting intimate data against a compromised device or account.
   policy, escalation rules, and cross-department priorities are not yet
   specified. The workflow chunks build the substrate without inventing
   that policy.
+
+---
+
+## F-005 mood-night substrate ("White girl wasted night" button)
+
+Added 2026-11-14. These chunks decompose the honestly-chunkable
+substrate of `FEATURE_QUEUE_muse.md` F-005: the mood-template data
+model, cart assembly against a **fake** delivery provider, the
+assembled-order presentation object, and its wiring into the existing
+approval-gate machinery (P-13/P-14). The spend step reuses that
+machinery — an order is dispatched only against an owner-approval
+record bound to the order's exact content hash, exactly as a draft
+send is. **No chunk here integrates a real delivery provider, holds a
+credential, or places a real order**; real provider integration stays
+under the NOT CHUNKED discipline above ("Real messaging, booking,
+rideshare, or agency integrations").
+
+**Consumption order addition:** P-24 → P-25; P-26 after P-24; P-27
+after P-26, P-13, and P-14; P-28 after P-22 and P-27.
+
+### P-24 — Mood-template data model
+
+**Objective:** Add the pure data model for a mood template: a named
+night (stable template ID and display name) resolving to a standing
+basket — line items with label, quantity, and serves count (the
+template's "for two" is data, not a comment), a preferred-store
+label, and a per-item substitution policy whose default is
+`never_upgrade`. Frozen dataclasses with validation and exact JSON
+round-trip, following the existing record patterns. No storage, no
+provider, no ordering.
+
+**Files:** `src/percival_core/mood_templates.py` (new);
+`tests/test_mood_templates.py` (new).
+
+**Acceptance:** A synthetic fixture template named for the F-005
+night (boxed rosé plus a charcuterie board, serves 2) round-trips
+through JSON exactly, including the `never_upgrade` policy on the
+wine item. Zero/negative quantity or serves, an empty basket, and an
+off-vocabulary substitution policy each raise `ValueError`. Run
+`python3 -m unittest discover -s tests -p 'test_mood_templates.py'`,
+then the full suite.
+
+**Depends on:** None.
+
+### P-25 — Persistent mood-template store
+
+**Objective:** Add a local SQLite store for mood templates following
+the `FriendRegistry`/`MissionLedger` patterns: create, read, update,
+deactivate, list (active only by default), persisted across
+close/reopen. Templates are standing preferences owned by the
+principal; the store records no orders, prices, or provider data.
+
+**Files:** `src/percival_core/mood_templates.py`;
+`tests/test_mood_templates.py`.
+
+**Acceptance:** In a temporary database, create two synthetic
+templates, update one's quantity, deactivate the other, close and
+reopen, and assert exact read-back and that the deactivated template
+is excluded from the default list. Duplicate template IDs are
+rejected. Run the targeted mood-template tests, then the full suite.
+
+**Depends on:** P-24.
+
+### P-26 — Cart assembly against a fake delivery provider
+
+**Objective:** Add a cart assembler that takes a mood template and an
+injected provider callable. The provider returns per-item evidence:
+available (with price in minor currency units) or unavailable. The
+assembler produces a cart in exactly one of two states: `assembled`
+(every item available as specified) or `needs_attention`. When an
+item is unavailable, the cart records the gap **as evidence** — the
+item, its unavailability, and any substitute the provider offered —
+and Percival never silently swaps it in. For an item whose policy is
+`never_upgrade`, an offered substitute labelled as an upgrade is
+recorded as evidence and explicitly **not** accepted; the cart is
+`needs_attention` with the item unresolved. This chunk contains no
+network code, no credentials, and no order placement.
+
+**Files:** `src/percival_core/mood_cart.py` (new);
+`src/percival_core/__init__.py`; `tests/test_mood_cart.py` (new).
+
+**Acceptance:** With stub providers: all-available → `assembled`
+cart with exact items, quantities, and summed total; one item
+unavailable with a same-tier substitute offered → `needs_attention`,
+substitute present as evidence only, original item still listed as
+unresolved; the `never_upgrade` wine item unavailable with an
+upgrade substitute offered → `needs_attention`, substitute recorded
+as rejected-upgrade evidence, never in the cart's accepted items.
+Assert the module's public surface contains no order/send operation.
+Run `python3 -m unittest discover -s tests -p 'test_mood_cart.py'`,
+then the full suite.
+
+**Depends on:** P-24.
+
+### P-27 — Assembled-order presentation object and approval-gated dispatch
+
+**Objective:** Build the owner-facing order object from a P-26 cart:
+items and quantities, total in minor units with currency, and the
+arrival estimate **as supplied evidence** (value plus provider
+label, never presented as a promise), with substitution/unresolved
+flags carried through. Persist the order with a SHA-256 content hash
+(MissionLedger pattern). Dispatch goes only through the existing
+approval machinery: an approval record (P-13) bound to this order's
+exact hash under a distinct `place_order` scope, consumed by a
+gated dispatcher (P-14 pattern) whose sender is an injected **fake**
+order-sender. A `needs_attention` cart cannot become an order at
+all. If the approvals module hard-codes its scope rather than
+storing it as a field, stop and report per the stop-and-report rule
+instead of widening it silently.
+
+**Files:** `src/percival_core/mood_orders.py` (new);
+`src/percival_core/approvals.py`; `src/percival_core/__init__.py`;
+`tests/test_mood_orders.py` (new).
+
+**Acceptance:** With a counting fake sender: no approval, expired
+approval, approval for a different hash, and approval under the
+`send_draft` scope each produce zero sender calls; one exact
+`place_order` approval produces exactly one call and a second
+dispatch attempt is refused. A `needs_attention` cart raises before
+any order record exists. The presentation object for a fixture cart
+shows the ETA labelled with its provider source. Run
+`python3 -m unittest discover -s tests -p 'test_mood_orders.py'`,
+then the full suite.
+
+**Depends on:** P-13, P-14, and P-26.
+
+### P-28 — Mood-button view model
+
+**Objective:** Extend the button view model with the mood-night
+card: a pure data mapping from template + cart + order state to
+`state`, `headline_key`, `detail_key`, and `enabled_action`. States:
+`ready` (cart assembled clean, action: review order),
+`needs_attention` (substitution or unresolved evidence, action:
+review evidence — never rendered as a failure or as "impossible"),
+`awaiting_approval`, `approved`, `ordered` (fake-dispatched), and
+`unknown` (no provider evidence yet, action: investigate). The
+module returns data only and gains no order or send operation.
+
+**Files:** `src/percival_core/button_view_model.py`;
+`tests/test_button_view_model.py`.
+
+**Acceptance:** Table-test every state for the exact view-model
+dictionary. `place_order_enabled` is true only in `approved` with a
+hash-matching approval (reusing P-27's states); `needs_attention`
+enables only the evidence-review action; `unknown` enables only
+investigate. Assert the module's public surface has no order,
+dispatch, or send function. Run the targeted view-model tests, then
+the full suite.
+
+**Depends on:** P-22 and P-27.
+
+### Not chunked (F-005)
+
+- **Real delivery-provider integration (DoorDash or any other).**
+  Accounts, OAuth/API credentials, provider terms, real pricing and
+  availability, payment, and real order placement are outside these
+  chunks — the same exclusion as every other real integration in
+  this file. P-26/P-27 specify only stub providers and a fake
+  sender.
+- **The mood-button pattern as a general class.** F-005 notes the
+  pattern generalises beyond one night. P-24 models one template
+  shape honestly; abstracting a general mood/workflow class before
+  a second mood exists is speculative architecture, not a chunk.
+- **Companion staging (F-001 check, lights, music).** The queue
+  lists these as proposals, each with its own approval. Bundling
+  them into the mood workflow is a product decision for the owner,
+  not substrate.
