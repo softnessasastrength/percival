@@ -18,6 +18,24 @@ finished subsystem. With the owner's adoption (ADR-006) it is now the
 production identity-registry / task-execution subsystem remains Codex
 work, built forward from this seed per the scoped tasks below.
 
+## Reading order
+
+1. `AGENTS.md` — the conduct contract; it outranks everything else
+   in this repository.
+2. `PERSONALITY.md` — the canonical, loadable character file
+   (v1, 2026-11-14). **Load it before building any user-facing
+   surface or text** — page copy, draft messages, spoken replies —
+   so the voice being built against is the whole character, not
+   the `AGENTS.md` paragraph alone. The owner rehearses the
+   character in the Codex TUI: load the file, converse as Percival,
+   correct in plain words; corrections are edited into
+   `PERSONALITY.md` and committed, so check that file's git
+   history for the latest tuning before writing user-facing text.
+3. `DECISIONS.md` — the ADR record (ADR-006 adopts the foundation
+   seed as the base to build forward from).
+4. This handoff — repository state, scoped tasks, verification
+   evidence.
+
 ## State of the repository on arrival
 
 The repository contained **documentation only** — `README.md`,

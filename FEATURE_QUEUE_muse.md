@@ -6,6 +6,8 @@ _Self-indulgent by design (Branden, 2026-11-14): "I'm building a self-indulgent 
 
 _Product vision (Branden, 2026-11-14): Percival is a complete butler inside an app — transportation is only one of his departments; the full brief is the whole household (scheduling, communications, household operations, research, errands, delegated workflows), matching the percival repo's own charter. The buttons in this queue are the butler's services — each one a domestic act the butler quietly handles end-to-end (the backend included) so the people involved don't carry the friction. The Metro-style app surface (ZeroCloud playground) is where the butler lives; the Atlas and the workflow specs are his competence behind the door._
 
+_Personality (2026-11-14): `PERSONALITY.md` in this repo is Percival's canonical, loadable character file and the rehearsal surface — the owner tests and corrects the character in conversation (Codex TUI), and corrections are committed to that file._
+
 _Design source (Branden, 2026-11-14): these buttons are reverse-engineered from the small acts of domestic work that made his relationship with Cass work — the everyday care logistics that actually held a shared life together. He names the act; the workflow gets built backwards from it. Treat each request as a field report from a real household, not an abstract feature idea: the act worked once, in real life, and the software's job is to make it repeatable._
 
 ## F-001 — "Bring to me" button (supported friends)
