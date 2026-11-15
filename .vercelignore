@@ -1,0 +1,10 @@
+# Keep local state, tests, and working documents out of the deployment.
+# The api/ functions bundle the src/ package; nothing else is required.
+tests/
+docs/
+__pycache__/
+*.pyc
+.pytest_cache/
+FEATURE_QUEUE_muse.md
+CODEX_HANDOFF.md
+.vercel/

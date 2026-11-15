@@ -221,6 +221,103 @@ configurable.
    Metro app surface, rendering the three verdict states honestly
    (`unknown` must never render as "impossible").
 
+## Vercel deployability (2026-11-14, Muse session)
+
+Percival now has a deployable body for Vercel, built and verified as
+far as a sandbox allows. **No production deployment has been made** —
+that remains the owner's explicit tap (AGENTS.md: production
+deployments require fresh owner approval).
+
+**What already existed (inspection, before any code)**
+
+- The Vercel account is `softnessasastrength` (Hobby plan), default
+  team scope `softnessasastrengths-projects`. A Vercel project **is**
+  linked to this repository: the Vercel GitHub App posts deployment
+  statuses to commits here. On PR #7's head commit (`cd185148`) the
+  `Vercel` status reads **failure — "Deployment rate limited — retry
+  in 24 hours"** (2026-11-15T00:47:06Z), with an upgrade-to-Pro link:
+  the Hobby build rate limit, not a code failure. Project name,
+  framework preset, root directory, and production domain could
+  **not** be read: the Vercel connector's team-scope reads return 403
+  pending a team-access authorization the connector does not expose.
+  The owner can confirm all of it in the Vercel dashboard in one look.
+- The repository itself had no deployment surface at all: no `api/`,
+  no static front door, no Vercel configuration.
+
+**What this change adds**
+
+- `api/health.py` → `GET /api/health`: service name, foundation
+  version, and which foundation modules import cleanly, as JSON.
+- `api/demo.py` → `/api/demo`: a registry/executor demonstration that
+  runs the executor in **dry-run mode only** (a body asking for
+  `dry_run: false` is rejected). The only registered tool is an inert
+  echo with `side_effects=False`, and even it is never invoked.
+  `GET` describes the endpoint; `POST {"message": "…"}` runs it.
+- `api/_percival.py` — shared logic for the two entrypoints
+  (underscore-prefixed: a helper module, not a function). It also
+  carries the safety posture in its docstring.
+- `public/index.html` — a restrained static front door: the charter
+  line, endpoint links, and an explicit status line that production
+  deployment awaits the owner's approval.
+- `.vercelignore` — keeps tests, docs, and working files out of the
+  deployment bundle.
+- `tests/test_api.py` — 14 tests driving the real handler classes
+  over a local HTTP harness, including the dry-run refusals.
+- **No `vercel.json`**: filesystem routing (`api/*.py` → `/api/*`,
+  `public/` → static) is Vercel's zero-config default; nothing needed
+  overriding, so nothing was added. No environment variables are
+  required; none are committed.
+
+**Verification (Muse Linux sandbox, 2026-11-14)**
+
+```bash
+python3 -m unittest discover -s tests   # 53 tests (39 prior + 14 new), OK (1 pre-existing live-Atlas skip)
+python3 -m compileall -q src tests api  # OK
+```
+
+Plus the strongest available build evidence: Vercel's own
+`@vercel/python` builder (from Vercel CLI 65.16.0 — the code Vercel
+runs server-side) was invoked directly against pristine copies of
+this tree and **built both functions successfully**: Lambda output,
+runtime `python3.12`, 223 bundled files including all four foundation
+modules and `api/_percival.py`. The builder's entrypoint analysis
+requires the top-level `handler` class to be defined in each
+entrypoint file itself; the entrypoints comply (shared work lives in
+`serve()` in `_percival.py`). The `vercel build` CLI command itself
+stops earlier in this sandbox — at its project-settings/auth gate
+(it requires a linked project or `VERCEL_TOKEN`, and linking is part
+of the owner's step below) — so a full CLI-orchestrated build and,
+of course, a live deployment remain **unverified until the owner's
+tap**. Static serving of `public/` is zero-config default behaviour
+and was not separately builder-verified.
+
+**The owner's tap (the single remaining action)**
+
+In the Vercel dashboard, open the project already linked to
+`softnessasastrength/percival`, confirm the root directory is the
+repository root, and deploy `main` to production — or, from a
+terminal in a checkout: `vercel link` (select the existing project),
+then `vercel deploy --prod`. Mind the Hobby build rate limit seen on
+PR #7: if it recurs, the choices are to wait it out or upgrade —
+spending is the owner's call alone.
+
+**Known limits, stated plainly**
+
+- **Serverless statelessness vs the audit log.** The foundation's
+  `AuditLog` is SQLite on local disk; Vercel functions have no
+  durable local disk. This surface is designed around that: the demo
+  uses an in-memory audit per invocation and reports only how many
+  events the dry run recorded. A durable audit trail in production
+  requires an external store (a future, separately approved step —
+  several options are paid services).
+- **Cold state per invocation.** Registries and grants are
+  constructed per request here; the production identity/task
+  subsystem (scoped task 1) must decide its own state story before
+  any live tool is exposed.
+- **No live tools.** Nothing on this surface can send, book, spend,
+  or act. Exposing a real tool is a security-boundary change and
+  requires the owner's fresh approval under AGENTS.md.
+
 ## Notes for the next engineer
 
 - Repo policy (`AGENTS.md`, ADR-005) allows the active assistant to merge
